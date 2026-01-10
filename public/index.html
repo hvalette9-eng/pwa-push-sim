@@ -5,10 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Configuration</title>
 
+  <!-- PWA -->
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <!-- iOS (important) -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Ma Boutique" />
+
+  <!-- (Optionnel mais utile) Force une icône / thème cohérents -->
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="background-color" content="#ffffff" />
 
   <style>
     body { margin:0; background:#f6f6f6; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
@@ -85,9 +93,9 @@
     <input id="logoFile" type="file" accept="image/*" />
 
     <div class="warn">
-      Sur iPhone, l’icône affichée dans la notif vient souvent de l’icône de la PWA (écran d’accueil),
-      pas du logo uploadé. Pour changer le logo sur iPhone, il faut remplacer <b>icon-192.png</b>,
-      <b>icon-512.png</b> (et <b>apple-touch-icon.png</b>) puis réinstaller la PWA.
+      <b>iPhone :</b> l’icône affichée dans la notif vient surtout de l’icône de la PWA (écran d’accueil).
+      Assure-toi d’avoir dans <code>/public</code> : <b>icon-192.png</b>, <b>icon-512.png</b> et <b>apple-touch-icon.png</b>,
+      puis supprime et réinstalle la PWA.
     </div>
 
     <button class="btn btnStart" id="btnStart">Lancer la simulation 💰</button>
@@ -97,6 +105,7 @@
     <div class="muted">Garde l’application ouverte pour recevoir les notifications.</div>
   </div>
 
+  <!-- App -->
   <script src="/app.js"></script>
 </body>
 </html>
