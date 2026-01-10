@@ -3,31 +3,83 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Simulateur de notifications</title>
-
+  <title>Configuration</title>
   <link rel="manifest" href="/manifest.webmanifest">
+  <style>
+    body{font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial; margin:0; background:#f6f6f6;}
+    .card{max-width:520px; margin:18px auto; background:#fff; border-radius:14px; padding:18px; box-shadow:0 6px 20px rgba(0,0,0,.06);}
+    h1{font-size:26px; margin:8px 0 16px;}
+    .row{display:flex; gap:12px;}
+    .col{flex:1;}
+    label{display:block; font-size:13px; color:#444; margin:10px 0 6px;}
+    input, select{width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:16px; background:#fff;}
+    .btn{width:100%; padding:14px; border:0; border-radius:12px; font-size:18px; font-weight:700; cursor:pointer;}
+    .btnStart{background:#0b7a59; color:#fff; margin-top:14px;}
+    .btnStop{background:#eee; margin-top:10px;}
+    .muted{color:#666; font-size:12px; text-align:center; margin-top:10px;}
+    .status{margin-top:12px; font-size:14px;}
+  </style>
 </head>
 <body>
-  <h1>Simulateur de notifications (PWA)</h1>
+  <div class="card">
+    <h1>Configuration</h1>
 
-  <button id="btnEnable">Activer les notifications</button>
-  <hr>
+    <label>Nom de la boutique</label>
+    <input id="shopName" placeholder="Ma Marque" value="Ma Marque" />
 
-  <label>
-    Intervalle min (sec)
-    <input id="minSec" type="number" value="10">
-  </label>
-  <br>
-  <label>
-    Intervalle max (sec)
-    <input id="maxSec" type="number" value="30">
-  </label>
-  <br><br>
+    <div class="row">
+      <div class="col">
+        <label>Nombre de notifs</label>
+        <input id="count" type="number" min="1" value="5" />
+      </div>
+      <div class="col">
+        <label>Vitesse min (sec)</label>
+        <input id="minSec" type="number" step="0.1" min="0.1" value="2" />
+      </div>
+      <div class="col">
+        <label>Vitesse max (sec)</label>
+        <input id="maxSec" type="number" step="0.1" min="0.1" value="6" />
+      </div>
+    </div>
 
-  <button id="btnStart">Démarrer</button>
-  <button id="btnStop">Stop</button>
+    <div class="row">
+      <div class="col">
+        <label>N° Commande (début)</label>
+        <input id="orderStart" type="number" value="1042" />
+      </div>
+      <div class="col">
+        <label>Prix min</label>
+        <input id="priceMin" type="number" value="20" />
+      </div>
+      <div class="col">
+        <label>Prix max</label>
+        <input id="priceMax" type="number" value="80" />
+      </div>
+    </div>
 
-  <p id="status"></p>
+    <div class="row">
+      <div class="col">
+        <label>Langue</label>
+        <select id="lang">
+          <option value="fr" selected>Notifs FR 🇫🇷</option>
+          <option value="en">Notifs EN 🇬🇧</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Mode</label>
+        <select id="mode">
+          <option value="random" selected>Aléatoire (réaliste)</option>
+          <option value="steady">Régulier</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btnStart" id="btnStart">Lancer la simulation 💰</button>
+    <button class="btn btnStop" id="btnStop">Stop</button>
+
+    <div class="status" id="status"></div>
+    <div class="muted">Gardez l’application ouverte.</div>
+  </div>
 
   <script src="/app.js"></script>
 </body>
