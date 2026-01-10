@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simulateur de notifications</title>
+
+  <link rel="manifest" href="/manifest.webmanifest">
+</head>
+<body>
+  <h1>Simulateur de notifications (PWA)</h1>
+
+  <button id="btnEnable">Activer les notifications</button>
+  <hr>
+
+  <label>
+    Intervalle min (sec)
+    <input id="minSec" type="number" value="10">
+  </label>
+  <br>
+  <label>
+    Intervalle max (sec)
+    <input id="maxSec" type="number" value="30">
+  </label>
+  <br><br>
+
+  <button id="btnStart">Démarrer</button>
+  <button id="btnStop">Stop</button>
+
+  <p id="status"></p>
+
+  <script src="/app.js"></script>
+</body>
+</html>
