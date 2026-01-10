@@ -1,8 +1,9 @@
 {
-  "name": "Simulateur de notifications",
-  "short_name": "NotifSim",
+  "name": "Shopify",
+  "short_name": "Shopify",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff"
 }
+
