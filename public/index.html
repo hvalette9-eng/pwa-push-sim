@@ -4,199 +4,154 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Configuration</title>
+
   <link rel="manifest" href="/manifest.webmanifest" />
 
   <style>
-    :root{
-      --bg:#f6f6f6;
-      --card:#ffffff;
-      --text:#111;
-      --muted:#666;
-      --border:#ddd;
-      --green:#0b7a59;
+    body {
+      margin: 0;
+      background: #f6f6f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: #111;
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--text);
-      font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+
+    .card {
+      max-width: 560px;
+      margin: 18px auto;
+      background: #fff;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.06);
     }
-    .card{
-      max-width:560px;
-      margin:18px auto;
-      background:var(--card);
-      border-radius:16px;
-      padding:18px;
-      box-shadow:0 6px 20px rgba(0,0,0,.06);
+
+    h1 {
+      font-size: 26px;
+      margin: 8px 0 14px;
     }
-    .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:10px;
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin: 12px 0 6px;
+      color: #444;
     }
-    h1{
-      font-size:26px;
-      margin:8px 0 12px;
-      letter-spacing:-.2px;
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      font-size: 16px;
     }
-    .row{
-      display:flex;
-      gap:12px;
-      align-items:flex-end;
+
+    .row {
+      display: flex;
+      gap: 12px;
     }
-    .col{flex:1}
-    label{
-      display:block;
-      font-size:13px;
-      color:#444;
-      margin:10px 0 6px;
+
+    .col {
+      flex: 1;
     }
-    input, select{
-      width:100%;
-      padding:12px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      font-size:16px;
-      background:#fff;
-      outline:none;
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
     }
-    input:focus, select:focus{border-color:#bbb}
-    .btn{
-      width:100%;
-      padding:14px;
-      border:0;
-      border-radius:12px;
-      font-size:18px;
-      font-weight:800;
-      cursor:pointer;
+
+    .btnStart {
+      background: #0b7a59;
+      color: #fff;
+      margin-top: 18px;
     }
-    .btnStart{background:var(--green); color:#fff; margin-top:14px;}
-    .btnStop{background:#eee; color:#111; margin-top:10px;}
-    .status{
-      margin-top:12px;
-      font-size:14px;
-      min-height:18px;
-      color:#111;
+
+    .btnStop {
+      background: #eee;
+      margin-top: 10px;
     }
-    .muted{
-      color:var(--muted);
-      font-size:12px;
-      text-align:center;
-      margin-top:10px;
+
+    .status {
+      margin-top: 12px;
+      font-size: 14px;
+      min-height: 18px;
     }
-    .hint{
-      color:var(--muted);
-      font-size:12px;
-      margin-top:6px;
-      line-height:1.35;
-    }
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 10px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      background:#fff;
-      font-size:13px;
-      color:#333;
-      white-space:nowrap;
-    }
-    .divider{
-      height:1px;
-      background:#f0f0f0;
-      margin:14px 0 6px;
+
+    .muted {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
     }
   </style>
 </head>
 
 <body>
   <div class="card">
-    <div class="top">
-      <h1>Configuration</h1>
-      <span class="badge">Notifs <strong id="langBadge">FR</strong> 🇫🇷</span>
-    </div>
+    <h1>Configuration</h1>
 
-    <label for="shopName">Nom de la boutique</label>
-    <input id="shopName" placeholder="Ma Marque" value="Ma Marque" />
+    <label>Nom de la boutique</label>
+    <input id="shopName" value="Ma Marque" />
 
     <div class="row">
       <div class="col">
-        <label for="count">Nombre de notifs</label>
+        <label>Nombre de notifications</label>
         <input id="count" type="number" min="1" value="5" />
       </div>
       <div class="col">
-        <label for="minSec">Vitesse min (sec)</label>
-        <input id="minSec" type="number" step="0.1" min="0.1" value="2" />
+        <label>Vitesse min (sec)</label>
+        <input id="minSec" type="number" step="0.1" value="2" />
       </div>
       <div class="col">
-        <label for="maxSec">Vitesse max (sec)</label>
-        <input id="maxSec" type="number" step="0.1" min="0.1" value="6" />
+        <label>Vitesse max (sec)</label>
+        <input id="maxSec" type="number" step="0.1" value="6" />
       </div>
     </div>
 
     <div class="row">
       <div class="col">
-        <label for="orderStart">N° Commande (début)</label>
-        <input id="orderStart" type="number" min="1" value="1042" />
+        <label>N° de commande (départ)</label>
+        <input id="orderStart" type="number" value="1042" />
       </div>
       <div class="col">
-        <label for="priceMin">Prix min</label>
-        <input id="priceMin" type="number" min="0" step="0.01" value="20" />
+        <label>Prix min</label>
+        <input id="priceMin" type="number" step="0.01" value="20" />
       </div>
       <div class="col">
-        <label for="priceMax">Prix max</label>
-        <input id="priceMax" type="number" min="0" step="0.01" value="80" />
+        <label>Prix max</label>
+        <input id="priceMax" type="number" step="0.01" value="80" />
       </div>
     </div>
 
-    <div class="divider"></div>
-
     <div class="row">
       <div class="col">
-        <label for="lang">Langue</label>
+        <label>Langue</label>
         <select id="lang">
-          <option value="fr" selected>Notifs FR 🇫🇷</option>
-          <option value="en">Notifs EN 🇬🇧</option>
+          <option value="fr" selected>Français 🇫🇷</option>
+          <option value="en">English 🇬🇧</option>
         </select>
       </div>
       <div class="col">
-        <label for="mode">Style de regroupement</label>
+        <label>Rythme</label>
         <select id="mode">
-          <option value="random" selected>Aléatoire (réaliste)</option>
+          <option value="random" selected>Aléatoire</option>
           <option value="steady">Régulier</option>
         </select>
       </div>
     </div>
 
-    <label for="logoFile">Logo pour la notification</label>
+    <label>Logo pour la notification</label>
     <input id="logoFile" type="file" accept="image/*" />
-    <div class="hint">
-      Astuce : le logo affiché dans iOS dépend de l’icône / des assets de la PWA.
-      Ici, on te permet aussi de choisir une image pour l’icône envoyée avec la notif (selon support iOS).
-    </div>
 
     <button class="btn btnStart" id="btnStart">Lancer la simulation 💰</button>
     <button class="btn btnStop" id="btnStop">Stop</button>
 
     <div class="status" id="status"></div>
-    <div class="muted">Gardez l’application ouverte.</div>
+    <div class="muted">Garde l’application ouverte pour recevoir les notifications</div>
   </div>
-
-  <script>
-    // Juste un petit confort visuel pour le badge (ça ne remplace pas app.js)
-    const langSel = document.getElementById("lang");
-    const langBadge = document.getElementById("langBadge");
-    function refreshBadge(){
-      const v = langSel.value === "en" ? "EN" : "FR";
-      langBadge.textContent = v;
-    }
-    langSel.addEventListener("change", refreshBadge);
-    refreshBadge();
-  </script>
 
   <script src="/app.js"></script>
 </body>
