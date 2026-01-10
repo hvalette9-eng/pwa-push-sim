@@ -1,13 +1,19 @@
 self.addEventListener("push", event => {
   let data = {};
-  try {
-    data = event.data.json();
-  } catch {}
+  try { data = event.data.json(); } catch {}
 
-  const title = data.title || "Notification";
+  const title = data.title || "Commande";
+  const body = data.body || "";
+  const icon = data.icon || "/icon-192.png";   // fallback
+  const badge = data.badge || icon;
+
   const options = {
-    body: data.body || "",
-    data: { url: data.url || "/" },
+    body,
+    icon,
+    badge,
+    tag: data.tag || "order",     // regroupe les notifs
+    renotify: true,               // renotifie si même tag
+    data: { url: data.url || "/" }
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
