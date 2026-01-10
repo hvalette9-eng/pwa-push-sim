@@ -1,18 +1,12 @@
 const $ = (id) => document.getElementById(id);
 
-let running = false;
-
 function setStatus(msg) {
   const el = $("status");
   if (el) el.textContent = msg || "";
 }
 
-// Convertit une clé VAPID Base64URL en Uint8Array (format attendu)
 function urlBase64ToUint8Array(base64String) {
-  // retire espaces / retours lignes accidentels
   base64String = (base64String || "").trim();
-
-  // base64url -> base64
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
 
@@ -23,10 +17,11 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function getVapidPublicKey() {
-  const r = await fetch("/api/vapidPublicKey");
+  const r = await fetch("/api/vapidPublicKey", { cache: "no-store" });
   const j = await r.json();
-  if (!j.publicKey) throw new Error("VAPID public key missing on server");
-  return j.publicKey.trim();
+  const key = (j.publicKey || "").trim();
+  if (!key) throw new Error("VAPID public key missing on server");
+  return key;
 }
 
 async function ensureServiceWorker() {
@@ -36,35 +31,55 @@ async function ensureServiceWorker() {
   return reg;
 }
 
-async function subscribePush() {
-  // 1) permissions
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") throw new Error("Notifications refusées");
-
-  // 2) sw
-  const reg = await ensureServiceWorker();
-
-  // 3) VAPID key depuis serveur
-  const publicKey = await getVapidPublicKey();
-  const appServerKey = urlBase64ToUint8Array(publicKey);
-
-  // 4) subscribe
-  const sub = await reg.pushManager.subscribe({
+async function forceResubscribe(reg, appServerKey) {
+  // iOS/Safari peut garder un vieux sub. On repart proprement.
+  const existing = await reg.pushManager.getSubscription();
+  if (existing) {
+    try { await existing.unsubscribe(); } catch (e) {}
+  }
+  return await reg.pushManager.subscribe({
     userVisibleOnly: true,
     appServerKey
   });
+}
 
-  // 5) envoie au serveur
+async function subscribeAndSendToServer() {
+  // Permission notif
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") throw new Error("Notifications refusées");
+
+  // Service worker
+  const reg = await ensureServiceWorker();
+
+  // Key VAPID
+  const publicKey = await getVapidPublicKey();
+  const appServerKey = urlBase64ToUint8Array(publicKey);
+
+  // Subscribe (TOUJOURS avec appServerKey)
+  const sub = await forceResubscribe(reg, appServerKey);
+
+  // Send subscription to server
   const resp = await fetch("/api/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(sub)
   });
-
   const data = await resp.json();
   if (!data.ok) throw new Error(data.error || "Subscribe error");
 
   return true;
+}
+
+async function uploadLogoIfAny() {
+  const input = $("logoFile");
+  if (!input || !input.files || !input.files[0]) return;
+
+  const fd = new FormData();
+  fd.append("logo", input.files[0]);
+
+  const r = await fetch("/api/logo", { method: "POST", body: fd });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Logo upload error");
 }
 
 async function startSimulation() {
@@ -87,7 +102,6 @@ async function startSimulation() {
 
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || "Start error");
-
   return j;
 }
 
@@ -95,29 +109,13 @@ async function stopSimulation() {
   await fetch("/api/stop", { method: "POST" });
 }
 
-async function uploadLogoIfAny() {
-  const input = $("logoFile");
-  if (!input || !input.files || !input.files[0]) return;
-
-  const fd = new FormData();
-  fd.append("logo", input.files[0]);
-
-  const r = await fetch("/api/logo", { method: "POST", body: fd });
-  const j = await r.json();
-  if (!j.ok) throw new Error(j.error || "Logo upload error");
-}
-
 window.addEventListener("load", () => {
   $("btnStart")?.addEventListener("click", async () => {
-    if (running) return;
-
     try {
-      running = true;
       setStatus("Activation des notifications…");
+      await subscribeAndSendToServer();
 
-      await subscribePush();
-
-      setStatus("Upload logo (optionnel)…");
+      setStatus("Logo (optionnel)…");
       await uploadLogoIfAny();
 
       setStatus("Simulation en cours…");
@@ -127,8 +125,6 @@ window.addEventListener("load", () => {
     } catch (e) {
       console.error(e);
       setStatus(`Erreur: ${e.message || e}`);
-    } finally {
-      running = false;
     }
   });
 
