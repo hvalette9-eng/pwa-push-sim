@@ -10,21 +10,31 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
-   DEBUG: version / health
+   DEBUG / HEALTH
 ========================= */
 app.get("/api/version", (req, res) => {
   res.json({
     ok: true,
     ts: new Date().toISOString(),
+    commitHint: process.env.RENDER_GIT_COMMIT || null,
     hasVapid: !!process.env.VAPID_PUBLIC_KEY && !!process.env.VAPID_PRIVATE_KEY
   });
 });
 
 /* =========================
-   VAPID (Render env vars)
+   VAPID KEY FOR CLIENT
+   (prevents "string does not match expected pattern" errors
+   due to bad copy/paste or wrong format in app.js)
 ========================= */
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+app.get("/api/vapidPublicKey", (req, res) => {
+  res.json({ publicKey: (process.env.VAPID_PUBLIC_KEY || "").trim() });
+});
+
+/* =========================
+   VAPID INIT (Render env vars)
+========================= */
+const VAPID_PUBLIC_KEY = (process.env.VAPID_PUBLIC_KEY || "").trim();
+const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || "").trim();
 
 let VAPID_READY = false;
 try {
@@ -44,43 +54,44 @@ try {
 }
 
 /* =========================
-   In-memory subscription
-   (one phone / one sub)
+   IN-MEMORY SUBSCRIPTION
 ========================= */
 let subscription = null;
 
 /* =========================
-   Upload logo (optional)
+   UPLOAD LOGO (optional)
 ========================= */
 const upload = multer({ dest: "/tmp" });
 let customLogoPath = null;
 
 app.post("/api/logo", upload.single("logo"), (req, res) => {
-  if (!req.file || !req.file.path) return res.status(400).json({ ok: false, error: "No file" });
+  if (!req.file || !req.file.path) {
+    return res.status(400).json({ ok: false, error: "No file" });
+  }
   customLogoPath = req.file.path;
   res.json({ ok: true });
 });
 
-// If you want server-side icon endpoint
+// Endpoint optionnel si tu veux servir un logo (non fiable iOS notif)
 app.get("/icon.png", (req, res) => {
-  // If a logo was uploaded, return it
   if (customLogoPath && fs.existsSync(customLogoPath)) {
     return res.sendFile(customLogoPath);
   }
-  // Fallback to your PWA icon
   const fallback = path.join(__dirname, "public", "icon-192.png");
   return res.sendFile(fallback);
 });
 
 /* =========================
-   Helpers: price + items
+   HELPERS
 ========================= */
 function formatPriceEuroPrefix(amount) {
+  // €29.95
   const v = Math.round(Number(amount) * 100) / 100;
-  return `€${v.toFixed(2)}`; // €29.95
+  return `€${v.toFixed(2)}`;
 }
 
 function itemsFromPrice(amount) {
+  // Prix élevés => + d'articles (ajuste les seuils si tu veux)
   const v = Number(amount);
   if (v >= 70) return 3;
   if (v >= 45) return 2;
@@ -92,7 +103,7 @@ function sleep(ms) {
 }
 
 /* =========================
-   Subscribe endpoint
+   SUBSCRIBE
 ========================= */
 app.post("/api/subscribe", (req, res) => {
   subscription = req.body;
@@ -100,7 +111,7 @@ app.post("/api/subscribe", (req, res) => {
 });
 
 /* =========================
-   Start simulation
+   SIMULATION
 ========================= */
 let stopFlag = false;
 
@@ -121,7 +132,10 @@ app.post("/api/start", async (req, res) => {
     }
 
     if (!subscription) {
-      return res.status(400).json({ ok: false, error: "No subscription yet. Click 'Activer les notifications' first." });
+      return res.status(400).json({
+        ok: false,
+        error: "No subscription yet. Click 'Activer les notifications' first."
+      });
     }
 
     const {
@@ -153,21 +167,24 @@ app.post("/api/start", async (req, res) => {
       const payload = {
         title: `Commande #${order}`,
         body: `${formatPriceEuroPrefix(price)}, ${items} article${items > 1 ? "s" : ""} de Boutique en ligne\n• ${shopName}`,
-        // For most iOS cases, the PWA icon is what you’ll see. Still set these for other platforms:
         icon: "/icon-192.png",
         badge: "/icon-192.png",
         tag: "order"
       };
 
-      await webpush.sendNotification(subscription, JSON.stringify(payload));
+      try {
+        await webpush.sendNotification(subscription, JSON.stringify(payload));
+      } catch (pushErr) {
+        // Ne fait pas crasher Render / la boucle
+        console.error("❌ push error:", pushErr?.statusCode || "", pushErr?.body || pushErr);
+      }
+
       order++;
 
-      let waitMs;
-      if (mode === "steady") {
-        waitMs = nMin * 1000;
-      } else {
-        waitMs = (Math.random() * (nMax - nMin) + nMin) * 1000;
-      }
+      const waitMs =
+        mode === "steady"
+          ? nMin * 1000
+          : (Math.random() * (nMax - nMin) + nMin) * 1000;
 
       await sleep(waitMs);
     }
@@ -180,7 +197,7 @@ app.post("/api/start", async (req, res) => {
 });
 
 /* =========================
-   Start server
+   START SERVER
 ========================= */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
