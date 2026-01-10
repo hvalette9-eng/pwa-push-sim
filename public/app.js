@@ -1,126 +1,144 @@
-// public/app.js
-const statusEl = document.getElementById("status");
-const setStatus = (m) => { if (statusEl) statusEl.textContent = m; };
 const $ = (id) => document.getElementById(id);
 
-function num(id, def) {
-  const v = Number($(id)?.value);
-  return Number.isFinite(v) ? v : def;
-}
-function str(id, def="") {
-  const v = $(id)?.value;
-  return (v === undefined || v === null || v === "") ? def : String(v);
+let running = false;
+
+function setStatus(msg) {
+  const el = $("status");
+  if (el) el.textContent = msg || "";
 }
 
-function saveConfig(cfg){ localStorage.setItem("cfg", JSON.stringify(cfg)); }
-function loadConfig(){ try { return JSON.parse(localStorage.getItem("cfg")||"{}"); } catch { return {}; } }
-
-function applyConfig(cfg){
-  const defaults = {
-    shopName: "Ma Boutique",
-    count: 5,
-    minSec: 2,
-    maxSec: 6,
-    orderStart: 28000,
-    priceMin: 20,
-    priceMax: 80,
-    lang: "fr",
-    mode: "random"
-  };
-  const merged = { ...defaults, ...cfg };
-  Object.entries(merged).forEach(([k,v]) => { if ($(k)) $(k).value = v; });
-}
-
+// Convertit une clé VAPID Base64URL en Uint8Array (format attendu)
 function urlBase64ToUint8Array(base64String) {
+  // retire espaces / retours lignes accidentels
+  base64String = (base64String || "").trim();
+
+  // base64url -> base64
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+
   const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map(ch => ch.charCodeAt(0)));
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
 }
 
-async function ensureSubscription(){
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") throw new Error("Notifications refusées");
+async function getVapidPublicKey() {
+  const r = await fetch("/api/vapidPublicKey");
+  const j = await r.json();
+  if (!j.publicKey) throw new Error("VAPID public key missing on server");
+  return j.publicKey.trim();
+}
 
+async function ensureServiceWorker() {
+  if (!("serviceWorker" in navigator)) throw new Error("Service Worker non supporté");
   const reg = await navigator.serviceWorker.register("/sw.js");
-  const { key } = await (await fetch("/api/vapidPublicKey")).json();
+  await navigator.serviceWorker.ready;
+  return reg;
+}
 
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(key),
-    });
-  }
+async function subscribePush() {
+  // 1) permissions
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") throw new Error("Notifications refusées");
 
-  await fetch("/api/subscribe", {
+  // 2) sw
+  const reg = await ensureServiceWorker();
+
+  // 3) VAPID key depuis serveur
+  const publicKey = await getVapidPublicKey();
+  const appServerKey = urlBase64ToUint8Array(publicKey);
+
+  // 4) subscribe
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    appServerKey
+  });
+
+  // 5) envoie au serveur
+  const resp = await fetch("/api/subscribe", {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(sub)
   });
+
+  const data = await resp.json();
+  if (!data.ok) throw new Error(data.error || "Subscribe error");
+
+  return true;
 }
 
-async function uploadLogoIfAny(){
-  const file = $("logoFile")?.files?.[0];
-  if (!file) return null;
-
-  const fd = new FormData();
-  fd.append("logo", file);
-
-  const res = await fetch("/api/logo", { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Upload logo impossible");
-  const json = await res.json();
-  return json.url;
-}
-
-function readConfig(){
-  let cfg = {
-    shopName: str("shopName","Ma Boutique").trim(),
-    count: Math.max(1, Math.floor(num("count",5))),
-    minSec: Math.max(0.1, num("minSec",2)),
-    maxSec: Math.max(0.1, num("maxSec",6)),
-    orderStart: Math.max(1, Math.floor(num("orderStart",28000))),
-    priceMin: Math.max(0, num("priceMin",20)),
-    priceMax: Math.max(0, num("priceMax",80)),
-    lang: str("lang","fr"),
-    mode: str("mode","random")
+async function startSimulation() {
+  const payload = {
+    shopName: $("shopName")?.value || "Ma Boutique",
+    count: Number($("count")?.value || 5),
+    minSec: Number($("minSec")?.value || 2),
+    maxSec: Number($("maxSec")?.value || 6),
+    orderStart: Number($("orderStart")?.value || 28000),
+    priceMin: Number($("priceMin")?.value || 20),
+    priceMax: Number($("priceMax")?.value || 80),
+    mode: $("mode")?.value || "random"
   };
 
-  if (cfg.maxSec < cfg.minSec) [cfg.minSec, cfg.maxSec] = [cfg.maxSec, cfg.minSec];
-  if (cfg.priceMax < cfg.priceMin) [cfg.priceMin, cfg.priceMax] = [cfg.priceMax, cfg.priceMin];
-  return cfg;
+  const r = await fetch("/api/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Start error");
+
+  return j;
 }
 
-async function start(){
-  try{
-    let cfg = readConfig();
-    saveConfig(cfg);
-
-    setStatus("Activation notifications…");
-    await ensureSubscription();
-
-    // Upload logo (utile surtout Android/desktop)
-    const logoUrl = await uploadLogoIfAny();
-    if (logoUrl) cfg.iconUrl = logoUrl;
-
-    setStatus("Démarrage…");
-    await fetch("/api/start", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(cfg)
-    });
-
-    setStatus("✅ Simulation lancée");
-  }catch(e){
-    setStatus("❌ " + (e?.message || String(e)));
-  }
-}
-
-async function stop(){
+async function stopSimulation() {
   await fetch("/api/stop", { method: "POST" });
-  setStatus("⏹️ Stoppé");
 }
 
-applyConfig(loadConfig());
-$("btnStart")?.addEventListener("click", start);
-$("btnStop")?.addEventListener("click", stop);
+async function uploadLogoIfAny() {
+  const input = $("logoFile");
+  if (!input || !input.files || !input.files[0]) return;
+
+  const fd = new FormData();
+  fd.append("logo", input.files[0]);
+
+  const r = await fetch("/api/logo", { method: "POST", body: fd });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || "Logo upload error");
+}
+
+window.addEventListener("load", () => {
+  $("btnStart")?.addEventListener("click", async () => {
+    if (running) return;
+
+    try {
+      running = true;
+      setStatus("Activation des notifications…");
+
+      await subscribePush();
+
+      setStatus("Upload logo (optionnel)…");
+      await uploadLogoIfAny();
+
+      setStatus("Simulation en cours…");
+      await startSimulation();
+
+      setStatus("Terminé ✅");
+    } catch (e) {
+      console.error(e);
+      setStatus(`Erreur: ${e.message || e}`);
+    } finally {
+      running = false;
+    }
+  });
+
+  $("btnStop")?.addEventListener("click", async () => {
+    try {
+      await stopSimulation();
+      setStatus("Stop ✅");
+    } catch (e) {
+      console.error(e);
+      setStatus("Erreur stop");
+    }
+  });
+});
