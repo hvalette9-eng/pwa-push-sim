@@ -1,18 +1,14 @@
 {
   "name": "pwa-push-sim",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "multer": "^1.4.5-lts.1"
-    "express": "^5.2.1",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
     "web-push": "^3.6.7"
   }
 }
