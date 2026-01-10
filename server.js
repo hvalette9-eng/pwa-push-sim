@@ -1,3 +1,4 @@
+const multer = require("multer");
 const express = require("express");
 const webpush = require("web-push");
 
@@ -10,6 +11,22 @@ const VAPID_PUBLIC_KEY =
   "BIx8mJqDSo615gziR_eVBWIS5fduBJqhQeyJ-nA8oGZp9WHQqw8Xggp7JG4W_mIyh8SNtYlnPg0W6yUafRS-DaM";
 const VAPID_PRIVATE_KEY =
   "ZjD8KcjVAdQAIQqv6vY4WmyKMU8R7EQbA_VhyPNDet4";
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, "/tmp"),
+    filename: (req, file, cb) => cb(null, "user-logo.png"),
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
+app.post("/api/logo", upload.single("logo"), (req, res) => {
+  res.json({ ok: true, url: "/user-logo.png" });
+});
+
+app.get("/user-logo.png", (req, res) => {
+  res.sendFile("/tmp/user-logo.png");
+});
+
 
 webpush.setVapidDetails("mailto:demo@example.com", VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
@@ -179,4 +196,5 @@ app.post("/api/stop", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🚀 Server running on port", PORT));
+
 
