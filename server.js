@@ -97,11 +97,11 @@ function nextDelayMs() {
 function formatPrice(amount, lang) {
   const v = Math.round(amount * 100) / 100;
 
-  if (lang === "fr") {
-    // ex: 39,95 €
-    const str = (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2)).replace(".", ",");
-    return `${str} €`;
-  }
+  // Format Shopify-like : €29.95
+  const str = v.toFixed(2);
+
+  return `€${str}`;
+}
 
   // ex: £39.95
   return `£${v % 1 === 0 ? v.toFixed(0) : v.toFixed(2)}`;
@@ -250,3 +250,4 @@ app.get("/api/health", (req, res) => {
 // =====================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🚀 Server running on port", PORT));
+
