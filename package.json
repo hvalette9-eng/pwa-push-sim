@@ -1,5 +1,5 @@
 {
-  "name": "pwa-push-sim",
+  "name": "order-notif-sim",
   "version": "1.0.0",
   "private": true,
   "main": "server.js",
