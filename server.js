@@ -56,24 +56,33 @@ function buildNotificationPayload() {
 
   const first = lang === "en" ? pick(EN_FIRSTNAMES) : pick(FR_FIRSTNAMES);
   const city = lang === "en" ? pick(EN_CITIES) : pick(FR_CITIES);
-  const product = lang === "en" ? pick(EN_PRODUCTS) : pick(FR_PRODUCTS);
 
   const price = randFloat(cfg.priceMin, cfg.priceMax);
   const priceStr = formatPrice(price, lang);
 
-  // titres “neutres” (démo)
-  const title = lang === "en" ? "New order (demo)" : "Nouvelle commande (démo)";
+  // 👇 Titre EXACT façon "Commande #24682"
+  const title = `Commande #${orderNo}`;
 
-  // format type: "Julien • Paris • 43 € — T-shirt"
-  const body =
+  // 👇 Corps sur 2 lignes comme sur ton screen
+  // ligne 1: prix + nb d'articles + type
+  const line1 =
     lang === "en"
-      ? `${first} • ${city} • ${priceStr} — ${product} (#${orderNo})`
-      : `${first} • ${city} • ${priceStr} — ${product} (#${orderNo})`;
+      ? `${priceStr}, 1 item from Online Store`
+      : `${priceStr}, 1 article de Boutique en ligne`;
+
+  // ligne 2: bullet + nom boutique
+  const shop = (cfg.shopName || "Ma Marque").trim();
+  const line2 = `• ${shop}`;
+
+  const body = `${line1}\n${line2}`;
 
   return {
     title,
     body,
     url: "/?from=push",
+    tag: "order",              // regroupement
+    icon: cfg.iconUrl || "/icon-192.png",
+    badge: cfg.iconUrl || "/icon-192.png",
   };
 }
 
@@ -170,3 +179,4 @@ app.post("/api/stop", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🚀 Server running on port", PORT));
+
