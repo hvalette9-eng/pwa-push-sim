@@ -10,6 +10,27 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
+   VAPID INIT (Render env vars) - FAIL FAST
+========================= */
+const VAPID_PUBLIC_KEY = (process.env.VAPID_PUBLIC_KEY || "").trim();
+const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || "").trim();
+
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  console.error(
+    "❌ Missing VAPID keys. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in Render env vars (no quotes, no spaces, no newlines)."
+  );
+  process.exit(1);
+}
+
+try {
+  webpush.setVapidDetails("mailto:demo@example.com", VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  console.log("✅ VAPID ready");
+} catch (e) {
+  console.error("❌ VAPID init error (invalid keys?):", e);
+  process.exit(1);
+}
+
+/* =========================
    DEBUG / HEALTH
 ========================= */
 app.get("/api/version", (req, res) => {
@@ -17,41 +38,17 @@ app.get("/api/version", (req, res) => {
     ok: true,
     ts: new Date().toISOString(),
     commitHint: process.env.RENDER_GIT_COMMIT || null,
-    hasVapid: !!process.env.VAPID_PUBLIC_KEY && !!process.env.VAPID_PRIVATE_KEY
+    hasVapidEnv: !!process.env.VAPID_PUBLIC_KEY && !!process.env.VAPID_PRIVATE_KEY,
+    vapidPublicKeyLen: VAPID_PUBLIC_KEY.length
   });
 });
 
 /* =========================
    VAPID KEY FOR CLIENT
-   (prevents "string does not match expected pattern" errors
-   due to bad copy/paste or wrong format in app.js)
 ========================= */
 app.get("/api/vapidPublicKey", (req, res) => {
-  res.json({ publicKey: (process.env.VAPID_PUBLIC_KEY || "").trim() });
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
 });
-
-/* =========================
-   VAPID INIT (Render env vars)
-========================= */
-const VAPID_PUBLIC_KEY = (process.env.VAPID_PUBLIC_KEY || "").trim();
-const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || "").trim();
-
-let VAPID_READY = false;
-try {
-  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-      "mailto:demo@example.com",
-      VAPID_PUBLIC_KEY,
-      VAPID_PRIVATE_KEY
-    );
-    VAPID_READY = true;
-    console.log("✅ VAPID ready");
-  } else {
-    console.warn("⚠️ Missing VAPID keys. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in Render env vars.");
-  }
-} catch (e) {
-  console.error("❌ VAPID init error:", e);
-}
 
 /* =========================
    IN-MEMORY SUBSCRIPTION
@@ -72,7 +69,7 @@ app.post("/api/logo", upload.single("logo"), (req, res) => {
   res.json({ ok: true });
 });
 
-// Endpoint optionnel si tu veux servir un logo (non fiable iOS notif)
+// Endpoint optionnel si tu veux servir un logo (souvent ignoré iOS notif)
 app.get("/icon.png", (req, res) => {
   if (customLogoPath && fs.existsSync(customLogoPath)) {
     return res.sendFile(customLogoPath);
@@ -85,16 +82,19 @@ app.get("/icon.png", (req, res) => {
    HELPERS
 ========================= */
 function formatPriceEuroPrefix(amount) {
-  // €29.95
+  // Format EXACT demandé: €25.95 (point décimal)
   const v = Math.round(Number(amount) * 100) / 100;
   return `€${v.toFixed(2)}`;
 }
 
 function itemsFromPrice(amount) {
-  // Prix élevés => + d'articles (ajuste les seuils si tu veux)
+  // Logique demandée :
+  // - > 70€ => 3 articles
+  // - > 35€ => 2 articles
+  // - sinon => 1 article
   const v = Number(amount);
-  if (v >= 70) return 3;
-  if (v >= 45) return 2;
+  if (v > 70) return 3;
+  if (v > 35) return 2;
   return 1;
 }
 
@@ -103,11 +103,53 @@ function sleep(ms) {
 }
 
 /* =========================
-   SUBSCRIBE
+   SUBSCRIBE (validated)
 ========================= */
 app.post("/api/subscribe", (req, res) => {
-  subscription = req.body;
+  const sub = req.body;
+
+  if (!sub || typeof sub !== "object") {
+    return res.status(400).json({ ok: false, error: "Invalid subscription payload" });
+  }
+  if (!sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
+    return res.status(400).json({
+      ok: false,
+      error: "Subscription missing endpoint/keys (endpoint, keys.p256dh, keys.auth required)"
+    });
+  }
+
+  subscription = sub;
   res.json({ ok: true });
+});
+
+/* =========================
+   TEST PUSH (recommended)
+========================= */
+app.post("/api/testPush", async (req, res) => {
+  if (!subscription) {
+    return res.status(400).json({ ok: false, error: "No subscription yet. Click 'Activer les notifications' first." });
+  }
+
+  const payload = {
+    title: "Commande #28042",
+    body: "€29.95, 2 ou 3 articles de Boutique en ligne\n• Ma Boutique",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: "order"
+  };
+
+  try {
+    await webpush.sendNotification(subscription, JSON.stringify(payload));
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("❌ testPush error:", e?.statusCode || "", e?.body || e);
+    res.status(500).json({
+      ok: false,
+      error: "Push failed",
+      statusCode: e?.statusCode,
+      details: e?.body || String(e)
+    });
+  }
 });
 
 /* =========================
@@ -123,13 +165,6 @@ app.post("/api/stop", (req, res) => {
 app.post("/api/start", async (req, res) => {
   try {
     stopFlag = false;
-
-    if (!VAPID_READY) {
-      return res.status(500).json({
-        ok: false,
-        error: "VAPID not configured. Add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in Render env vars."
-      });
-    }
 
     if (!subscription) {
       return res.status(400).json({
