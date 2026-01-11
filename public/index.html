@@ -2,21 +2,25 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Configuration</title>
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.webmanifest" />
 
-  <!-- iOS (important) -->
+  <!-- Icons -->
+  <link rel="icon" href="/icon-192.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Ma Boutique" />
 
-  <!-- (Optionnel mais utile) Force une icône / thème cohérents -->
+  <!-- Nice-to-have -->
   <meta name="theme-color" content="#ffffff" />
   <meta name="background-color" content="#ffffff" />
+  <meta name="format-detection" content="telephone=no" />
 
   <style>
     body { margin:0; background:#f6f6f6; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
@@ -24,14 +28,16 @@
     h1 { font-size:26px; margin:8px 0 14px; }
     label { display:block; font-size:13px; margin:12px 0 6px; color:#444; }
     input, select { width:100%; padding:12px; border-radius:12px; border:1px solid #ddd; font-size:16px; }
-    .row { display:flex; gap:12px; }
-    .col { flex:1; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .col { flex:1; min-width:160px; }
     .btn { width:100%; padding:14px; border-radius:12px; border:none; font-size:18px; font-weight:800; cursor:pointer; }
     .btnStart { background:#0b7a59; color:#fff; margin-top:18px; }
     .btnStop { background:#eee; margin-top:10px; }
     .status { margin-top:12px; font-size:14px; min-height:18px; }
     .muted { margin-top:10px; font-size:12px; color:#666; text-align:center; line-height:1.3; }
     .warn { margin-top:10px; font-size:12px; color:#8a6d3b; background:#fff7e6; border:1px solid #ffe0a3; padding:10px; border-radius:12px; }
+    .danger { margin-top:10px; font-size:12px; color:#7a1f1f; background:#ffecec; border:1px solid #ffb8b8; padding:10px; border-radius:12px; display:none; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
 </head>
 
@@ -39,58 +45,55 @@
   <div class="card">
     <h1>Configuration</h1>
 
-    <label>Nom de la boutique</label>
-    <input id="shopName" value="Ma Boutique" />
+    <div class="danger" id="httpsWarn">
+      ⚠️ Les notifications push web nécessitent <b>HTTPS</b>. Ouvre ce site en https:// (pas http://).
+    </div>
+
+    <label for="shopName">Nom de la boutique</label>
+    <input id="shopName" name="shopName" value="Ma Boutique" autocomplete="organization" />
 
     <div class="row">
       <div class="col">
-        <label>Nombre de notifications</label>
-        <input id="count" type="number" min="1" value="5" />
+        <label for="count">Nombre de notifications</label>
+        <input id="count" name="count" type="number" min="1" value="5" inputmode="numeric" />
       </div>
       <div class="col">
-        <label>Vitesse min (sec)</label>
-        <input id="minSec" type="number" step="0.1" value="2" />
+        <label for="minSec">Vitesse min (sec)</label>
+        <input id="minSec" name="minSec" type="number" step="0.1" value="2" inputmode="decimal" />
       </div>
       <div class="col">
-        <label>Vitesse max (sec)</label>
-        <input id="maxSec" type="number" step="0.1" value="6" />
+        <label for="maxSec">Vitesse max (sec)</label>
+        <input id="maxSec" name="maxSec" type="number" step="0.1" value="6" inputmode="decimal" />
       </div>
     </div>
 
     <div class="row">
       <div class="col">
-        <label>N° de commande (départ)</label>
-        <input id="orderStart" type="number" value="28000" />
+        <label for="orderStart">N° de commande (départ)</label>
+        <input id="orderStart" name="orderStart" type="number" value="28000" inputmode="numeric" />
       </div>
       <div class="col">
-        <label>Prix min</label>
-        <input id="priceMin" type="number" step="0.01" value="20" />
+        <label for="priceMin">Prix min</label>
+        <input id="priceMin" name="priceMin" type="number" step="0.01" value="20" inputmode="decimal" />
       </div>
       <div class="col">
-        <label>Prix max</label>
-        <input id="priceMax" type="number" step="0.01" value="80" />
+        <label for="priceMax">Prix max</label>
+        <input id="priceMax" name="priceMax" type="number" step="0.01" value="80" inputmode="decimal" />
       </div>
     </div>
 
     <div class="row">
       <div class="col">
-        <label>Langue</label>
-        <select id="lang">
-          <option value="fr" selected>Français 🇫🇷</option>
-          <option value="en">English 🇬🇧</option>
-        </select>
-      </div>
-      <div class="col">
-        <label>Rythme</label>
-        <select id="mode">
+        <label for="mode">Rythme</label>
+        <select id="mode" name="mode">
           <option value="random" selected>Aléatoire</option>
           <option value="steady">Régulier</option>
         </select>
       </div>
     </div>
 
-    <label>Logo de notification (upload)</label>
-    <input id="logoFile" type="file" accept="image/*" />
+    <label for="logoFile">Logo de notification (upload)</label>
+    <input id="logoFile" name="logoFile" type="file" accept="image/*" />
 
     <div class="warn">
       <b>iPhone :</b> l’icône affichée dans la notif vient surtout de l’icône de la PWA (écran d’accueil).
@@ -98,14 +101,22 @@
       puis supprime et réinstalle la PWA.
     </div>
 
-    <button class="btn btnStart" id="btnStart">Lancer la simulation 💰</button>
-    <button class="btn btnStop" id="btnStop">Stop</button>
+    <button class="btn btnStart" id="btnStart" type="button">Lancer la simulation 💰</button>
+    <button class="btn btnStop" id="btnStop" type="button">Stop</button>
 
     <div class="status" id="status"></div>
     <div class="muted">Garde l’application ouverte pour recevoir les notifications.</div>
   </div>
 
   <!-- App -->
+  <script>
+    // Push web => HTTPS obligatoire (sauf localhost)
+    const isLocalhost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    if (!isLocalhost && location.protocol !== "https:") {
+      const el = document.getElementById("httpsWarn");
+      if (el) el.style.display = "block";
+    }
+  </script>
   <script src="/app.js"></script>
 </body>
 </html>
