@@ -10,35 +10,35 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
-   VAPID INIT (Render env vars) - FAIL FAST
+   VAPID INIT (FAIL FAST)
 ========================= */
 const VAPID_PUBLIC_KEY = (process.env.VAPID_PUBLIC_KEY || "").trim();
 const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || "").trim();
 
 if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-  console.error(
-    "❌ Missing VAPID keys. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in Render env vars (no quotes, no spaces, no newlines)."
-  );
+  console.error("❌ Missing VAPID keys");
   process.exit(1);
 }
 
 try {
-  webpush.setVapidDetails("mailto:demo@example.com", VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  webpush.setVapidDetails(
+    "mailto:demo@example.com",
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
   console.log("✅ VAPID ready");
 } catch (e) {
-  console.error("❌ VAPID init error (invalid keys?):", e);
+  console.error("❌ VAPID init error:", e);
   process.exit(1);
 }
 
 /* =========================
-   DEBUG / HEALTH
+   DEBUG
 ========================= */
 app.get("/api/version", (req, res) => {
   res.json({
     ok: true,
     ts: new Date().toISOString(),
-    commitHint: process.env.RENDER_GIT_COMMIT || null,
-    hasVapidEnv: !!process.env.VAPID_PUBLIC_KEY && !!process.env.VAPID_PRIVATE_KEY,
     vapidPublicKeyLen: VAPID_PUBLIC_KEY.length
   });
 });
@@ -51,20 +51,18 @@ app.get("/api/vapidPublicKey", (req, res) => {
 });
 
 /* =========================
-   IN-MEMORY SUBSCRIPTION
+   SUBSCRIPTION (MEMORY)
 ========================= */
 let subscription = null;
 
 /* =========================
-   UPLOAD LOGO (optional)
+   LOGO UPLOAD (OPTIONAL)
 ========================= */
 const upload = multer({ dest: "/tmp" });
 let customLogoPath = null;
 
 app.post("/api/logo", upload.single("logo"), (req, res) => {
-  if (!req.file || !req.file.path) {
-    return res.status(400).json({ ok: false, error: "No file" });
-  }
+  if (!req.file) return res.status(400).json({ ok: false });
   customLogoPath = req.file.path;
   res.json({ ok: true });
 });
@@ -73,85 +71,68 @@ app.get("/icon.png", (req, res) => {
   if (customLogoPath && fs.existsSync(customLogoPath)) {
     return res.sendFile(customLogoPath);
   }
-  const fallback = path.join(__dirname, "public", "icon-192.png");
-  return res.sendFile(fallback);
+  return res.sendFile(path.join(__dirname, "public", "icon-192.png"));
 });
 
 /* =========================
    HELPERS
 ========================= */
-function formatPriceEuroPrefix(amount) {
-  const v = Math.round(Number(amount) * 100) / 100;
-  return `€${v.toFixed(2)}`; // ✅ €25.95
+function formatPrice(amount) {
+  return `€${Number(amount).toFixed(2)}`;
 }
 
-// ✅ Prix fixes demandés (aléatoires)
-const FIXED_PRICES = [21.95, 24.95, 34.95, 44.90, 49.90, 51.90, 54.90, 66.85];
+// ✅ Fixed prices
+const FIXED_PRICES = [
+  21.95, 24.95, 34.95, 44.90,
+  49.90, 51.90, 54.90, 66.85
+];
 
-function pickRandomFixedPrice() {
-  const idx = Math.floor(Math.random() * FIXED_PRICES.length);
-  return FIXED_PRICES[idx];
+function pickRandomPrice() {
+  return FIXED_PRICES[Math.floor(Math.random() * FIXED_PRICES.length)];
 }
 
-// ✅ Règles articles demandées
-function itemsFromPrice(amount) {
-  const v = Number(amount);
-  if (v > 52) return 3;
-  if (v > 35) return 2;
+// ✅ Items logic
+function itemsFromPrice(price) {
+  if (price > 52) return 3;
+  if (price > 35) return 2;
   return 1;
 }
 
 function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+  return new Promise(r => setTimeout(r, ms));
 }
 
 /* =========================
-   SUBSCRIBE (validated)
+   SUBSCRIBE
 ========================= */
 app.post("/api/subscribe", (req, res) => {
   const sub = req.body;
-
-  if (!sub || typeof sub !== "object") {
-    return res.status(400).json({ ok: false, error: "Invalid subscription payload" });
+  if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) {
+    return res.status(400).json({ ok: false });
   }
-  if (!sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) {
-    return res.status(400).json({
-      ok: false,
-      error: "Subscription missing endpoint/keys (endpoint, keys.p256dh, keys.auth required)"
-    });
-  }
-
   subscription = sub;
   res.json({ ok: true });
 });
 
 /* =========================
-   TEST PUSH (recommended)
+   TEST PUSH
 ========================= */
 app.post("/api/testPush", async (req, res) => {
-  if (!subscription) {
-    return res.status(400).json({ ok: false, error: "No subscription yet. Click 'Lancer' first." });
-  }
+  if (!subscription) return res.status(400).json({ ok: false });
 
   const payload = {
-    title: "Commande #28042",
-    body: "€29.95, 2 ou 3 articles de Boutique en ligne\n• Ma Boutique",
+    title: "Order #28042",
+    body: "€49.90, 2 items from Online Store\n• My Store",
     icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    tag: "order"
+    badge: "/icon-192.png"
   };
 
   try {
     await webpush.sendNotification(subscription, JSON.stringify(payload));
     res.json({ ok: true });
   } catch (e) {
-    console.error("❌ testPush error:", e?.statusCode || "", e?.body || e);
-    res.status(500).json({
-      ok: false,
-      error: "Push failed",
-      statusCode: e?.statusCode,
-      details: e?.body || String(e)
-    });
+    console.error(e);
+    res.status(500).json({ ok: false });
   }
 });
 
@@ -168,77 +149,62 @@ app.post("/api/stop", (req, res) => {
 app.post("/api/start", async (req, res) => {
   try {
     stopFlag = false;
-
-    if (!subscription) {
-      return res.status(400).json({
-        ok: false,
-        error: "No subscription yet. Click 'Lancer' first."
-      });
-    }
+    if (!subscription) return res.status(400).json({ ok: false });
 
     const {
-      shopName = "Ma Boutique",
+      shopName = "My Store",
       count = 5,
       minSec = 2,
       maxSec = 6,
-      startDelaySec = 0, // ✅ délai avant 1ère notif
+      startDelaySec = 0,
       orderStart = 28000,
       mode = "random"
-      // NOTE: on ignore volontairement priceMin/priceMax puisque on utilise FIXED_PRICES
     } = req.body || {};
 
-    const nCount = Math.max(1, Number(count));
-    const nMin = Math.max(0.1, Number(minSec));
-    const nMax = Math.max(nMin, Number(maxSec));
-    const nDelay = Math.max(0, Number(startDelaySec));
-    const nOrderStart = Number(orderStart);
-
-    // ✅ Attente avant la 1ère notification
-    if (nDelay > 0) {
-      await sleep(nDelay * 1000);
+    if (startDelaySec > 0) {
+      await sleep(startDelaySec * 1000);
     }
 
-    let order = nOrderStart;
+    let order = Number(orderStart);
 
-    for (let i = 0; i < nCount; i++) {
+    for (let i = 0; i < count; i++) {
       if (stopFlag) break;
 
-      const price = pickRandomFixedPrice(); // ✅ PRIX FIXE AU HASARD
-      const items = itemsFromPrice(price);  // ✅ 1 / 2 / 3 selon règles
+      const price = pickRandomPrice();
+      const items = itemsFromPrice(price);
 
       const payload = {
-        title: `Commande #${order}`,
-        body: `${formatPriceEuroPrefix(price)}, ${items} article${items > 1 ? "s" : ""} de Boutique en ligne\n• ${shopName}`,
+        title: `Order #${order}`,
+        body: `${formatPrice(price)}, ${items} item${items > 1 ? "s" : ""} from Online Store\n• ${shopName}`,
         icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        tag: "order"
+        badge: "/icon-192.png"
       };
 
       try {
         await webpush.sendNotification(subscription, JSON.stringify(payload));
-      } catch (pushErr) {
-        console.error("❌ push error:", pushErr?.statusCode || "", pushErr?.body || pushErr);
+      } catch (e) {
+        console.error("Push error:", e);
       }
 
       order++;
 
-      const waitMs =
+      const wait =
         mode === "steady"
-          ? nMin * 1000
-          : (Math.random() * (nMax - nMin) + nMin) * 1000;
+          ? minSec * 1000
+          : (Math.random() * (maxSec - minSec) + minSec) * 1000;
 
-      await sleep(waitMs);
+      await sleep(wait);
     }
 
-    res.json({ ok: true, stopped: stopFlag });
-  } catch (err) {
-    console.error("❌ /api/start error:", err);
-    res.status(500).json({ ok: false, error: "Server error. Check Render logs." });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false });
   }
 });
 
 /* =========================
-   START SERVER
+   START
 ========================= */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
