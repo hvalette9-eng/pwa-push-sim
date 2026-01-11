@@ -85,9 +85,18 @@ function formatPriceEuroPrefix(amount) {
   return `€${v.toFixed(2)}`; // ✅ €25.95
 }
 
+// ✅ Prix fixes demandés (aléatoires)
+const FIXED_PRICES = [21.95, 24.95, 34.95, 44.90, 49.90, 51.90, 54.90, 66.85];
+
+function pickRandomFixedPrice() {
+  const idx = Math.floor(Math.random() * FIXED_PRICES.length);
+  return FIXED_PRICES[idx];
+}
+
+// ✅ Règles articles demandées
 function itemsFromPrice(amount) {
   const v = Number(amount);
-  if (v > 70) return 3;
+  if (v > 52) return 3;
   if (v > 35) return 2;
   return 1;
 }
@@ -174,18 +183,15 @@ app.post("/api/start", async (req, res) => {
       maxSec = 6,
       startDelaySec = 0, // ✅ délai avant 1ère notif
       orderStart = 28000,
-      priceMin = 20,
-      priceMax = 80,
       mode = "random"
+      // NOTE: on ignore volontairement priceMin/priceMax puisque on utilise FIXED_PRICES
     } = req.body || {};
 
     const nCount = Math.max(1, Number(count));
     const nMin = Math.max(0.1, Number(minSec));
     const nMax = Math.max(nMin, Number(maxSec));
-    const nDelay = Math.max(0, Number(startDelaySec)); // ✅
+    const nDelay = Math.max(0, Number(startDelaySec));
     const nOrderStart = Number(orderStart);
-    const nPriceMin = Number(priceMin);
-    const nPriceMax = Math.max(nPriceMin, Number(priceMax));
 
     // ✅ Attente avant la 1ère notification
     if (nDelay > 0) {
@@ -197,8 +203,8 @@ app.post("/api/start", async (req, res) => {
     for (let i = 0; i < nCount; i++) {
       if (stopFlag) break;
 
-      const price = Math.random() * (nPriceMax - nPriceMin) + nPriceMin;
-      const items = itemsFromPrice(price);
+      const price = pickRandomFixedPrice(); // ✅ PRIX FIXE AU HASARD
+      const items = itemsFromPrice(price);  // ✅ 1 / 2 / 3 selon règles
 
       const payload = {
         title: `Commande #${order}`,
