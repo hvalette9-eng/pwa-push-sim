@@ -81,14 +81,20 @@ function formatPrice(amount) {
   return `€${Number(amount).toFixed(2)}`;
 }
 
-// ✅ Fixed prices
+/*
+  ✅ PONDERATED PRICES
+  Lower prices appear more often on purpose
+*/
 const FIXED_PRICES = [
-  21.95, 24.95, 34.95, 44.90,
-  49.90, 51.90, 54.90, 66.85
+  21.95, 21.95,
+  24.95, 24.95,
+  39.90,
+  44.90
 ];
 
 function pickRandomPrice() {
-  return FIXED_PRICES[Math.floor(Math.random() * FIXED_PRICES.length)];
+  const idx = Math.floor(Math.random() * FIXED_PRICES.length);
+  return FIXED_PRICES[idx];
 }
 
 // ✅ Items logic
@@ -122,7 +128,7 @@ app.post("/api/testPush", async (req, res) => {
 
   const payload = {
     title: "Order #28042",
-    body: "€49.90, 2 items from Online Store\n• My Store",
+    body: "€21.95, 1 item from Online Store\n• My Store",
     icon: "/icon-192.png",
     badge: "/icon-192.png"
   };
