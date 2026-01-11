@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 function setStatus(msg) {
   const el = $("status");
   if (el) el.textContent = msg || "";
+  console.log(msg);
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -18,7 +19,8 @@ function urlBase64ToUint8Array(base64String) {
 
 async function getVapidPublicKey() {
   const r = await fetch("/api/vapidPublicKey", { cache: "no-store" });
-  const j = await r.json();
+  if (!r.ok) throw new Error("Impossible de charger /api/vapidPublicKey");
+  const j = await r.json().catch(() => ({}));
   const key = (j.publicKey || "").trim();
   if (!key) throw new Error("VAPID public key missing on server");
   return key;
@@ -26,36 +28,54 @@ async function getVapidPublicKey() {
 
 async function ensureServiceWorker() {
   if (!("serviceWorker" in navigator)) throw new Error("Service Worker non supporté");
-  const reg = await navigator.serviceWorker.register("/sw.js");
-  await navigator.serviceWorker.ready;
-  return reg;
+
+  // Register
+  const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+
+  // Force update (Safari cache / vieux SW)
+  try { await reg.update(); } catch (_) {}
+
+  // Wait until active/ready and return the READY registration (important on iOS)
+  const readyReg = await navigator.serviceWorker.ready;
+  return readyReg;
 }
 
 async function forceResubscribe(reg, appServerKey) {
-  // iOS/Safari peut garder un vieux sub. On repart proprement.
+  if (!("PushManager" in window)) throw new Error("PushManager indisponible");
+  if (Notification.permission === "denied") {
+    throw new Error("Notifications bloquées (permission refusée). Active-les dans iOS > Réglages > Safari.");
+  }
+
+  // iOS/Safari peut garder un vieux sub : on repart proprement.
   const existing = await reg.pushManager.getSubscription();
   if (existing) {
-    try { await existing.unsubscribe(); } catch (e) {}
+    try { await existing.unsubscribe(); } catch (_) {}
   }
-  return await reg.pushManager.subscribe({
+
+  // Subscribe (TOUJOURS avec appServerKey)
+  const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     appServerKey
   });
+
+  return sub;
 }
 
 async function subscribeAndSendToServer() {
   // Permission notif
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") throw new Error("Notifications refusées");
+  if (Notification.permission !== "granted") {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") throw new Error("Notifications refusées");
+  }
 
-  // Service worker
+  // Service worker (ready)
   const reg = await ensureServiceWorker();
 
   // Key VAPID
   const publicKey = await getVapidPublicKey();
   const appServerKey = urlBase64ToUint8Array(publicKey);
 
-  // Subscribe (TOUJOURS avec appServerKey)
+  // Subscribe
   const sub = await forceResubscribe(reg, appServerKey);
 
   // Send subscription to server
@@ -64,7 +84,13 @@ async function subscribeAndSendToServer() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(sub)
   });
-  const data = await resp.json();
+
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => "");
+    throw new Error("Erreur serveur /api/subscribe: " + t);
+  }
+
+  const data = await resp.json().catch(() => ({}));
   if (!data.ok) throw new Error(data.error || "Subscribe error");
 
   return true;
@@ -78,7 +104,12 @@ async function uploadLogoIfAny() {
   fd.append("logo", input.files[0]);
 
   const r = await fetch("/api/logo", { method: "POST", body: fd });
-  const j = await r.json();
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error("Erreur upload logo: " + t);
+  }
+
+  const j = await r.json().catch(() => ({}));
   if (!j.ok) throw new Error(j.error || "Logo upload error");
 }
 
@@ -100,7 +131,12 @@ async function startSimulation() {
     body: JSON.stringify(payload)
   });
 
-  const j = await r.json();
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error("Erreur serveur /api/start: " + t);
+  }
+
+  const j = await r.json().catch(() => ({}));
   if (!j.ok) throw new Error(j.error || "Start error");
   return j;
 }
@@ -124,7 +160,7 @@ window.addEventListener("load", () => {
       setStatus("Terminé ✅");
     } catch (e) {
       console.error(e);
-      setStatus(`Erreur: ${e.message || e}`);
+      setStatus(`Erreur: ${e?.message || e}`);
     }
   });
 
