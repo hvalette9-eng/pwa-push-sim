@@ -69,7 +69,6 @@ app.post("/api/logo", upload.single("logo"), (req, res) => {
   res.json({ ok: true });
 });
 
-// Endpoint optionnel si tu veux servir un logo (souvent ignoré iOS notif)
 app.get("/icon.png", (req, res) => {
   if (customLogoPath && fs.existsSync(customLogoPath)) {
     return res.sendFile(customLogoPath);
@@ -82,16 +81,11 @@ app.get("/icon.png", (req, res) => {
    HELPERS
 ========================= */
 function formatPriceEuroPrefix(amount) {
-  // Format EXACT demandé: €25.95 (point décimal)
   const v = Math.round(Number(amount) * 100) / 100;
-  return `€${v.toFixed(2)}`;
+  return `€${v.toFixed(2)}`; // ✅ €25.95
 }
 
 function itemsFromPrice(amount) {
-  // Logique demandée :
-  // - > 70€ => 3 articles
-  // - > 35€ => 2 articles
-  // - sinon => 1 article
   const v = Number(amount);
   if (v > 70) return 3;
   if (v > 35) return 2;
@@ -127,7 +121,7 @@ app.post("/api/subscribe", (req, res) => {
 ========================= */
 app.post("/api/testPush", async (req, res) => {
   if (!subscription) {
-    return res.status(400).json({ ok: false, error: "No subscription yet. Click 'Activer les notifications' first." });
+    return res.status(400).json({ ok: false, error: "No subscription yet. Click 'Lancer' first." });
   }
 
   const payload = {
@@ -169,7 +163,7 @@ app.post("/api/start", async (req, res) => {
     if (!subscription) {
       return res.status(400).json({
         ok: false,
-        error: "No subscription yet. Click 'Activer les notifications' first."
+        error: "No subscription yet. Click 'Lancer' first."
       });
     }
 
@@ -178,6 +172,7 @@ app.post("/api/start", async (req, res) => {
       count = 5,
       minSec = 2,
       maxSec = 6,
+      startDelaySec = 0, // ✅ délai avant 1ère notif
       orderStart = 28000,
       priceMin = 20,
       priceMax = 80,
@@ -187,9 +182,15 @@ app.post("/api/start", async (req, res) => {
     const nCount = Math.max(1, Number(count));
     const nMin = Math.max(0.1, Number(minSec));
     const nMax = Math.max(nMin, Number(maxSec));
+    const nDelay = Math.max(0, Number(startDelaySec)); // ✅
     const nOrderStart = Number(orderStart);
     const nPriceMin = Number(priceMin);
     const nPriceMax = Math.max(nPriceMin, Number(priceMax));
+
+    // ✅ Attente avant la 1ère notification
+    if (nDelay > 0) {
+      await sleep(nDelay * 1000);
+    }
 
     let order = nOrderStart;
 
@@ -210,7 +211,6 @@ app.post("/api/start", async (req, res) => {
       try {
         await webpush.sendNotification(subscription, JSON.stringify(payload));
       } catch (pushErr) {
-        // Ne fait pas crasher Render / la boucle
         console.error("❌ push error:", pushErr?.statusCode || "", pushErr?.body || pushErr);
       }
 
